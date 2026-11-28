@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SAFNAFAM</title>
+<style>
+:root{--bg:#f3f1ee;--pn:#fff;--tx:#1d1b1a;--mu:#76706b;--ac:#e8362d;--bd:#ddd8d3;--cv:#000;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141312;--pn:#1f1d1c;--tx:#f1eeeb;--mu:#9a938d;--bd:#34312f}}
+:root[data-theme="dark"]{--bg:#141312;--pn:#1f1d1c;--tx:#f1eeeb;--mu:#9a938d;--bd:#34312f}
+*{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 "Trebuchet MS",system-ui,sans-serif;padding:12px}
+header{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}header>div{display:flex;flex-wrap:wrap;gap:6px}
+h1{font:800 22px/1 Georgia,serif;margin:0;letter-spacing:-.5px}
+h1 i{color:var(--ac)}
+button,select,input[type=text]{font:inherit;color:var(--tx);background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:8px 12px}
+button{cursor:pointer}button:active{transform:scale(.97)}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:700}
+.fb{position:relative;overflow:hidden;display:inline-block;cursor:pointer;border-radius:8px;padding:8px 12px;border:1px solid var(--bd);background:var(--pn)}
+.fb.p{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:700}
+.fb input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+button.on{outline:2px solid var(--ac)}
+main{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:900px){main{grid-template-columns:1fr 380px;align-items:start}.right{grid-row:span 3;position:sticky;top:12px;max-height:calc(100vh - 90px);overflow:auto}main #cv{max-height:calc(100vh - 330px)}#tl .clip{height:84px;font-size:14px}#tl{min-height:96px}}
+.card{background:var(--pn);border:1px solid var(--bd);border-radius:12px;padding:12px}
+#cv{width:100%;max-height:52vh;background:var(--cv);border-radius:8px;display:block;margin-inline:auto;object-fit:contain}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.bar input[type=range]{flex:1;min-width:120px}
+#tl{display:flex;gap:6px;overflow-x:auto;padding:4px 0;min-height:64px}
+.clip{flex:none;min-width:70px;height:54px;border-radius:8px;border:2px solid var(--bd);background:var(--bg);display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:12px;cursor:pointer}
+.clip.sel{border-color:var(--ac)}
+.clip small{color:var(--mu)}
+label{display:block;font-size:13px;color:var(--mu);margin:10px 0 3px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1}
+input[type=range]{width:100%;accent-color:var(--ac)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.empty{color:var(--mu);text-align:center;padding:20px}
+#out video{width:100%;border-radius:8px;margin-top:8px;max-height:50vh}
+.hint{font-size:12.5px;color:var(--mu)}
+</style></head><body>
+<header><h1>SAFNA<i>FAM</i></h1><div><label class="fb p">+ Clips<input type="file" id="file" accept="video/*,image/*" multiple></label> <label class="fb"><span id="mut">+ Music</span><input type="file" id="mfile" accept="audio/*"></label> <button id="sv">Save</button> <button id="op">Open</button> <select id="res"><option value="720">HD 720p</option><option value="1080">Full HD 1080p</option><option value="2160">4K</option></select> <button class="p" id="exp">Export</button></div></header>
+
+<svg width="0" height="0" style="position:absolute"><filter id="sh"><feConvolveMatrix order="3" kernelMatrix="0 -1 0 -1 5 -1 0 -1 0"/></filter></svg>
+<main>
+<section class="card">
+<canvas id="cv" width="1280" height="720"></canvas>
+<div class="bar"><button id="pl" class="p">Play</button><input type="range" id="sc" min="0" max="0" step="0.01" value="0"><span id="tm" class="hint">0.0 / 0.0s</span><button id="ar">16:9</button></div>
+</section>
+<section class="card"><div id="tl"><div class="empty"><label for="file" class="fb p">+ Add photos / videos</label></div></div>
+<div class="bar"><button id="sp">Split here</button><button id="ml">Move left</button><button id="mr">Move right</button><button id="dl">Delete</button></div></section>
+<section class="card right" id="pn"><div class="empty">Select a clip to edit it</div></section>
+<section class="card" id="out" hidden></section>
+</main>
+<script>
+const $=id=>document.getElementById(id),cv=$('cv'),ctx=cv.getContext('2d');
+const F={none:'none',bw:'grayscale(1)',sepia:'sepia(.8)',vivid:'saturate(1.7) contrast(1.1)',warm:'sepia(.3) saturate(1.3)',cool:'hue-rotate(18deg) saturate(1.1)',fade:'contrast(.8) brightness(1.1)',sharpHD:'url(#sh) contrast(1.05) saturate(1.1)',softskin:'blur(1.3px) brightness(1.06) saturate(1.05)',vintage:'sepia(.5) contrast(1.2) brightness(.9)',noir:'grayscale(1) contrast(1.5)',dream:'blur(1px) brightness(1.15) saturate(1.3)',cinema:'contrast(1.25) saturate(.85) hue-rotate(-8deg)',pop:'saturate(2.2) contrast(1.15)'};
+let cp=0,ow,oh,clips=[],sel=-1,cur=0,playing=false,exporting=false,t0=0,ac,spk,dest,rec,chunks=[];
+const dur=c=>(c.end-c.start)/c.speed,total=()=>clips.reduce((s,c)=>s+dur(c),0);
+const offOf=i=>clips.slice(0,i).reduce((s,c)=>s+dur(c),0);
+function mk(kind,url,el,max){return{kind,url,el,max,start:0,end:max,speed:1,vol:1,filter:'none',b:1,ct:1,sa:1,flip:false,fade:0,rm:'off',bgc:'#00b140',caps:null,text:'',tpos:'bottom',color:'#ffffff',size:56}}
+function mkVideo(url){const v=document.createElement('video');v.src=url;v.playsInline=true;v.preload='auto';v.onseeked=()=>draw();return v}
+let music;$('mfile').onchange=e=>{const f=e.target.files[0];if(!f)return;music={el:new Audio(URL.createObjectURL(f)),file:f};$('mut').textContent='Music ✓';e.target.value=''};
+const msg=s=>{$('tm').textContent=s};
+const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('safnafam',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>res(r.result);r.onerror=rej});
+async function saveP(){try{const d=await idb(),tx=d.transaction('p','readwrite');tx.objectStore('p').put({clips:clips.map(({el,node,url,...r})=>r),music:music?{file:music.file}:null,wide:cv.width>cv.height},'proj');tx.oncomplete=()=>msg('Project saved');tx.onerror=()=>msg('Save failed')}catch(e){msg('Save failed')}}
+async function loadP(){try{const d=await idb(),rq=d.transaction('p').objectStore('p').get('proj');rq.onsuccess=async()=>{const o=rq.result;if(!o)return msg('No saved project');pause();clips=[];
+ for(const r of o.clips){const url=URL.createObjectURL(r.file);let el;if(r.kind==='v'){el=mkVideo(url);await new Promise(z=>{el.onloadedmetadata=z;el.onerror=z})}else{el=new Image();el.src=url;await new Promise(z=>{el.onload=z;el.onerror=z})}clips.push({...r,url,el})}
+ if(o.music){music={el:new Audio(URL.createObjectURL(o.music.file)),file:o.music.file};$('mut').textContent='Music ✓'}
+ cv.width=o.wide?1280:720;cv.height=o.wide?720:1280;$('ar').textContent=o.wide?'16:9':'9:16';sel=0;seek(0);render()}}catch(e){msg('Open failed')}}
+$('sv').onclick=saveP;$('op').onclick=loadP;
+function nat(b){const fs=Capacitor.Plugins.Filesystem,rd=new FileReader();rd.onload=async()=>{try{await fs.writeFile({path:'SAFNAFAM/video_'+Date.now()+'.webm',data:rd.result.split(',')[1],directory:'DOCUMENTS',recursive:true});msg('Saved: Documents/SAFNAFAM')}catch(e){msg('Save failed')}};rd.readAsDataURL(b)}
+$('file').onchange=async e=>{for(const f of e.target.files){const url=URL.createObjectURL(f);
+ if(f.type.startsWith('video')){const v=mkVideo(url);await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r});clips.push(mk('v',url,v,v.duration||1));clips.at(-1).file=f}
+ else{const im=new Image();im.src=url;await new Promise(r=>{im.onload=r;im.onerror=r});clips.push(mk('i',url,im,30));clips.at(-1).end=3;clips.at(-1).file=f}}
+ e.target.value='';if(sel<0)sel=0;seek(0);render()};
+let seg,asr,segL,md,lastTs=0;const mc=document.createElement('canvas'),mctx=mc.getContext('2d'),tmp=document.createElement('canvas'),tg=tmp.getContext('2d');
+const st=s=>{const e=$('ai');if(e)e.textContent=s};
+async function loadSeg(){if(seg)return true;try{st('Loading background model...');const T=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');const fs=await T.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');seg=await T.ImageSegmenter.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',delegate:'GPU'},runningMode:'VIDEO',outputConfidenceMasks:true,outputCategoryMask:false});st('');return true}catch(e){st('Model could not load. Needs internet the first time, and works in the APK or Chrome, not in this preview.');return false}}
+function mask(c){try{if(c.kind==='v'&&c.el.readyState<2)return null;lastTs=Math.max(performance.now(),lastTs+1);const r=seg.segmentForVideo(c.el,lastTs),m=r.confidenceMasks[0],a=m.getAsFloat32Array();if(mc.width!==m.width||mc.height!==m.height){mc.width=m.width;mc.height=m.height;md=mctx.createImageData(m.width,m.height)}for(let i=0;i<a.length;i++)md.data[i*4+3]=a[i]*255;mctx.putImageData(md,0,0);r.close&&r.close();return mc}catch(e){return null}}
+function paint(c,W,H,iw,ih,s){const x=(W-iw*s)/2,y=(H-ih*s)/2,w=iw*s,h=ih*s;
+ if(c.rm&&c.rm!=='off'){if(!seg){if(!segL){segL=1;loadSeg().then(draw)}}else{const m=mask(c);if(m){const fl=ctx.filter;
+  if(c.rm==='blur'){ctx.filter=(fl==='none'?'':fl+' ')+'blur(14px)';ctx.drawImage(c.el,x,y,w,h)}else{ctx.filter='none';ctx.fillStyle=c.bgc;ctx.fillRect(x,y,w,h)}
+  if(tmp.width!==W||tmp.height!==H){tmp.width=W;tmp.height=H}tg.globalCompositeOperation='source-over';tg.clearRect(0,0,W,H);tg.filter=fl;tg.drawImage(c.el,x,y,w,h);tg.filter='none';tg.globalCompositeOperation='destination-in';tg.drawImage(m,x,y,w,h);
+  ctx.filter='none';ctx.drawImage(tmp,0,0);return}}}
+ ctx.drawImage(c.el,x,y,w,h)}
+async function loadASR(){if(asr)return;const T=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/+esm');asr=await T.pipeline('automatic-speech-recognition','Xenova/whisper-base',{dtype:'q8',progress_callback:p=>{if(p.status==='progress')st('Downloading speech model '+Math.round(p.progress)+'%')}})}
+async function makeCaps(c){try{st('Loading speech model (big the first time)...');await loadASR();st('Reading audio...');const AC=window.AudioContext||window.webkitAudioContext,x=new AC({sampleRate:16000}),ab=await x.decodeAudioData(await c.file.arrayBuffer());x.close();const a=ab.getChannelData(0).slice(Math.floor(c.start*16000),Math.floor(c.end*16000));st('Transcribing... this can take a few minutes');const lg=$('cl').value,o=await asr(a,{return_timestamps:true,chunk_length_s:30,stride_length_s:5,...(lg?{language:lg,task:'transcribe'}:{})});const L=c.end-c.start;c.caps=(o.chunks||[{timestamp:[0,L],text:o.text}]).map(k=>({s:c.start+k.timestamp[0],e:c.start+(k.timestamp[1]??L),t:k.text.trim()}));st(c.caps.length+' captions ready');draw()}catch(e){st('Captions failed: '+(e.message||'needs internet the first time'))}}
+function draw(){const W=cv.width,H=cv.height;ctx.filter='none';ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);const c=clips[cur];if(!c)return;if(c.fade>0)ctx.globalAlpha=Math.max(0,Math.min(1,cp/c.fade,(dur(c)-cp)/c.fade));
+ const iw=c.kind==='v'?c.el.videoWidth:c.el.naturalWidth,ih=c.kind==='v'?c.el.videoHeight:c.el.naturalHeight;
+ if(iw){const s=Math.min(W/iw,H/ih);ctx.filter=(F[c.filter]==='none'?'':F[c.filter]+' ')+`brightness(${c.b}) contrast(${c.ct}) saturate(${c.sa})`;ctx.save();if(c.flip){ctx.translate(W,0);ctx.scale(-1,1)}paint(c,W,H,iw,ih,s);ctx.restore();ctx.filter='none'}
+ if(c.text){const k=c.size*W/1280;ctx.font=`bold ${k}px sans-serif`;ctx.textAlign='center';ctx.lineJoin='round';ctx.lineWidth=k/6;ctx.strokeStyle='#000';ctx.fillStyle=c.color;
+  const y=c.tpos==='top'?k+30:c.tpos==='mid'?H/2+k/3:H-40;ctx.strokeText(c.text,W/2,y,W-40);ctx.fillText(c.text,W/2,y,W-40)}
+ if(c.caps){const ts=c.start+cp*c.speed,k=c.caps.find(z=>ts>=z.s&&ts<z.e);if(k){const f=44*W/1280;ctx.font=`bold ${f}px sans-serif`;ctx.textAlign='center';ctx.lineJoin='round';ctx.lineWidth=f/5;ctx.strokeStyle='#000';ctx.fillStyle='#ffe14d';ctx.strokeText(k.t,W/2,H-f*2.2,W-40);ctx.fillText(k.t,W/2,H-f*2.2,W-40)}}ctx.globalAlpha=1}
+function audio(){if(!ac){ac=new(window.AudioContext||window.webkitAudioContext)();spk=ac.createGain();spk.connect(ac.destination);dest=ac.createMediaStreamDestination()}
+ if(music&&!music.node){try{music.node=ac.createMediaElementSource(music.el);music.node.connect(spk);music.node.connect(dest)}catch(e){}}
+ clips.forEach(c=>{if(c.kind==='v'&&!c.node){try{c.node=ac.createMediaElementSource(c.el);c.node.connect(spk);c.node.connect(dest)}catch(e){}}});ac.resume()}
+function seek(t){pause();let i=0,o=0;for(;i<clips.length-1&&o+dur(clips[i])<=t;i++)o+=dur(clips[i]);cur=i;const c=clips[i];
+ if(c&&c.kind==='v')c.el.currentTime=c.start+(t-o)*c.speed;cp=t-o;$('sc').max=total();$('sc').value=t;draw();clock(t)}
+function clock(t){$('tm').textContent=t.toFixed(1)+' / '+total().toFixed(1)+'s'}
+function pause(){playing=false;if(music)music.el.pause();clips.forEach(c=>c.kind==='v'&&c.el.pause());$('pl').textContent='Play'}
+function startClip(i,off){cur=i;const c=clips[i];if(c.kind==='v'){c.el.currentTime=c.start+off*c.speed;c.el.playbackRate=c.speed;c.el.volume=c.vol;c.el.play()}else t0=performance.now()-off*1000}
+function play(){if(!clips.length)return;audio();let t=+$('sc').value;if(t>=total()-.05)t=0;
+ let i=0,o=0;for(;i<clips.length-1&&o+dur(clips[i])<=t;i++)o+=dur(clips[i]);playing=true;$('pl').textContent='Pause';if(music){music.el.currentTime=t;music.el.play()}startClip(i,t-o);tick()}
+function tick(){if(!playing)return;const c=clips[cur];let p,end;
+ if(c.kind==='v'){p=(c.el.currentTime-c.start)/c.speed;end=c.el.currentTime>=c.end-.03||c.el.ended}else{p=(performance.now()-t0)/1000;end=p>=dur(c)}
+ cp=Math.max(0,Math.min(p,dur(c)));const t=offOf(cur)+cp;$('sc').value=t;clock(t);draw();
+ if(end){if(c.kind==='v')c.el.pause();if(cur+1<clips.length)startClip(cur+1,0);else return finish()}
+ requestAnimationFrame(tick)}
+function finish(){pause();if(exporting){exporting=false;setTimeout(()=>rec.stop(),300)}}
+$('pl').onclick=()=>playing?pause():play();
+$('sc').oninput=e=>seek(+e.target.value);
+$('ar').onclick=()=>{const p=cv.width>cv.height;cv.width=p?720:1280;cv.height=p?1280:720;$('ar').textContent=p?'9:16':'16:9';draw()};
+function render(){const tl=$('tl');tl.innerHTML='';if(!clips.length){tl.innerHTML='<div class="empty"><label for="file" class="fb p">+ Add photos / videos</label></div>';$('pn').innerHTML='<div class="empty">Select a clip to edit it</div>';return}
+ clips.forEach((c,i)=>{const d=document.createElement('div');d.className='clip'+(i===sel?' sel':'');d.style.width=Math.max(70,dur(c)*14)+'px';
+  d.innerHTML=`${c.kind==='v'?'Video':'Photo'} ${i+1}<small>${dur(c).toFixed(1)}s</small>`;d.onclick=()=>{sel=i;seek(offOf(i));render()};tl.appendChild(d)});
+ panel();$('sc').max=total();clock(+$('sc').value)}
+function panel(){const c=clips[sel];if(!c)return;const v=c.kind==='v';
+ $('pn').innerHTML=`<b>Clip ${sel+1}</b>
+ <label>Start: <span id="vs">${c.start.toFixed(1)}</span>s</label><input type="range" id="rs" min="0" max="${c.max}" step="0.05" value="${c.start}">
+ <label>End: <span id="ve">${c.end.toFixed(1)}</span>s</label><input type="range" id="re" min="0" max="${c.max}" step="0.05" value="${c.end}">
+ ${v?`<div class="row"><div><label>Speed</label><select id="sd">${[.5,.75,1,1.5,2,3].map(x=>`<option ${x===c.speed?'selected':''} value="${x}">${x}x</option>`).join('')}</select></div>
+ <div><label>Volume</label><input type="range" id="vl" min="0" max="1" step="0.05" value="${c.vol}"></div></div>`:''}
+ <label>Filter</label><div class="chips">${Object.keys(F).map(k=>`<button data-f="${k}" class="${k===c.filter?'on':''}">${k}</button>`).join('')}</div>
+ <label>Brightness</label><input type="range" id="eb" min="0.4" max="1.8" step="0.05" value="${c.b}"><label>Contrast</label><input type="range" id="ec" min="0.4" max="1.8" step="0.05" value="${c.ct}"><label>Saturation</label><input type="range" id="ea" min="0" max="2.5" step="0.05" value="${c.sa}"><div class="bar"><button id="fp">Flip</button></div><label>Fade in/out (transition): <span id="vf">${c.fade}</span>s</label><input type="range" id="ef" min="0" max="2" step="0.1" value="${c.fade}"><label>Background remover (AI)</label><div class="row"><select id="rm"><option value="off">Off</option><option value="blur">Blur background</option><option value="color">Solid colour</option></select><input type="color" id="bgc" value="${c.bgc||'#00b140'}" style="height:38px"></div><label>Auto captions (AI)</label><div class="row"><select id="cl"><option value="">Auto language</option><option value="english">English</option><option value="malayalam">Malayalam</option><option value="hindi">Hindi</option><option value="tamil">Tamil</option></select><button id="cg">Generate</button></div><div class="hint" id="ai"></div>
+ <label>Text on clip</label><input type="text" id="tx" value="${c.text.replace(/"/g,'&quot;')}" placeholder="Type a caption" style="width:100%">
+ <div class="row"><div><label>Position</label><select id="tp">${['top','mid','bottom'].map(x=>`<option ${x===c.tpos?'selected':''}>${x}</option>`).join('')}</select></div>
+ <div><label>Colour</label><input type="color" id="tc" value="${c.color}" style="width:100%;height:38px"></div></div>
+ <label>Text size</label><input type="range" id="tz" min="24" max="120" value="${c.size}">`;
+ const set=()=>{c.start=Math.min(+$('rs').value,c.end-.1);c.end=Math.max(+$('re').value,c.start+.1);$('vs').textContent=c.start.toFixed(1);$('ve').textContent=c.end.toFixed(1)};
+ $('rs').oninput=()=>{set();$('rs').value=c.start;seek(offOf(sel));renderTl()};
+ $('re').oninput=()=>{set();$('re').value=c.end;renderTl()};
+ if(v){$('sd').onchange=e=>{c.speed=+e.target.value;seek(offOf(sel));renderTl()};$('vl').oninput=e=>{c.vol=+e.target.value;c.el.volume=c.vol}}
+ $('pn').querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{c.filter=b.dataset.f;draw();panel()});
+ $('eb').oninput=e=>{c.b=+e.target.value;draw()};$('ec').oninput=e=>{c.ct=+e.target.value;draw()};$('ea').oninput=e=>{c.sa=+e.target.value;draw()};$('fp').onclick=()=>{c.flip=!c.flip;draw()};$('ef').oninput=e=>{c.fade=+e.target.value;$('vf').textContent=c.fade;draw()};
+ $('rm').value=c.rm||'off';$('rm').onchange=async e=>{c.rm=e.target.value;if(c.rm!=='off'&&!await loadSeg()){c.rm='off';e.target.value='off'}draw()};$('bgc').oninput=e=>{c.bgc=e.target.value;draw()};$('cg').onclick=()=>c.kind==='v'?makeCaps(c):st('Captions need a video clip');
+ $('tx').oninput=e=>{c.text=e.target.value;draw()};$('tp').onchange=e=>{c.tpos=e.target.value;draw()};
+ $('tc').oninput=e=>{c.color=e.target.value;draw()};$('tz').oninput=e=>{c.size=+e.target.value;draw()}}
+function renderTl(){[...$('tl').children].forEach((d,i)=>{const c=clips[i];d.style.width=Math.max(70,dur(c)*14)+'px';d.querySelector('small').textContent=dur(c).toFixed(1)+'s'});$('sc').max=total();clock(+$('sc').value)}
+$('sp').onclick=()=>{const c=clips[sel];if(!c)return;const p=+$('sc').value-offOf(sel);if(p<=.1||p>=dur(c)-.1)return;
+ const s=c.start+p*c.speed,n={...c,node:null,start:s,el:c.kind==='v'?mkVideo(c.url):c.el};c.end=s;clips.splice(sel+1,0,n);render()};
+$('dl').onclick=()=>{if(sel<0)return;clips.splice(sel,1);sel=Math.min(sel,clips.length-1);cur=0;seek(0);render()};
+const mv=d=>{const j=sel+d;if(sel<0||j<0||j>=clips.length)return;[clips[sel],clips[j]]=[clips[j],clips[sel]];sel=j;seek(offOf(sel));render()};
+$('ml').onclick=()=>mv(-1);$('mr').onclick=()=>mv(1);
+$('exp').onclick=()=>{if(!clips.length)return alert('Add a clip first');audio();ow=cv.width;oh=cv.height;const sh=+$('res').value;if(ow>oh){cv.height=sh;cv.width=Math.round(sh*16/9)}else{cv.width=sh;cv.height=Math.round(sh*16/9)}seek(0);spk.gain.value=0;chunks=[];
+ const st=new MediaStream([...cv.captureStream(30).getVideoTracks(),...dest.stream.getAudioTracks()]);
+ const m=['video/webm;codecs=vp9,opus','video/webm','video/mp4'].find(x=>window.MediaRecorder&&MediaRecorder.isTypeSupported(x));
+ if(!m)return alert('This browser cannot record video. Try Chrome, Edge or Firefox.');
+ rec=new MediaRecorder(st,{mimeType:m,videoBitsPerSecond:sh>=2160?25e6:sh>=1080?12e6:6e6});rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+ rec.onstop=()=>{spk.gain.value=1;cv.width=ow;cv.height=oh;draw();const bl=new Blob(chunks,{type:m});if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())nat(bl);const u=URL.createObjectURL(bl),o=$('out');o.hidden=false;
+  o.innerHTML=`<b>Your video is ready</b><video controls playsinline src="${u}"></video><p class="hint">Save it: long-press (phone) or right-click (PC) the video and choose Save video. <a href="${u}" download="cutroom.${m.includes('mp4')?'mp4':'webm'}">Download</a></p>`;o.scrollIntoView({behavior:'smooth'})};
+ exporting=true;rec.start();$('exp').textContent='Exporting…';play();const w=setInterval(()=>{if(!exporting){clearInterval(w);$('exp').textContent='Export'}},400)};
+</script></body></html>
